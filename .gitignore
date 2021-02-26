@@ -1,6 +1,16 @@
+<<<<<<< HEAD
 __init__.py
 *.pyc
 .*.swp
 .#*
 #*#
 *~
+*.o
+*.so
+*.root
+*.pdf
+*.ini
+*.old
+*.bckp
+*.info
+

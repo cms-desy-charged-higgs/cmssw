@@ -3,7 +3,7 @@ import os
 
 def DMR(config, validationDir):
     ##List with all jobs
-    jobs = []
+    jobs, singleJobs = [], []
     dmrType = "single"
 
     ##List with all wished IOVs
@@ -30,8 +30,6 @@ def DMR(config, validationDir):
                 local["validation"] = copy.deepcopy(config["validations"]["DMR"][dmrType][datasetName])
                 local["validation"].pop("alignments")
                 local["validation"]["IOV"] = IOV
-                if "dataset" in local["validation"]:
-                    local["validation"]["dataset"] = local["validation"]["dataset"].format(IOV)
                 if "goodlumi" in local["validation"]:
                     local["validation"]["goodlumi"] = local["validation"]["goodlumi"].format(IOV)
 
@@ -46,7 +44,9 @@ def DMR(config, validationDir):
                     "config": local, 
                 }
 
-                jobs.append(job)
+                singleJobs.append(job)
+
+    jobs.extend(singleJobs)
 
     ##Do merge DMR if wished
     if "merge" in config["validations"]["DMR"]:
@@ -76,11 +76,12 @@ def DMR(config, validationDir):
                     ##Deep copy necessary things from global config
                     local.setdefault("alignments", {})
                     local["alignments"][alignment] = copy.deepcopy(config["alignments"][alignment])
-                    local["validation"] = copy.deepcopy(config["validations"]["DMR"][dmrType][mergeName])
-                    local["output"] = "{}/{}/{}/{}/{}".format(config["LFS"], config["name"], dmrType, mergeName, IOV)
+
+                local["validation"] = copy.deepcopy(config["validations"]["DMR"][dmrType][mergeName])
+                local["output"] = "{}/{}/{}/{}/{}".format(config["LFS"], config["name"], dmrType, mergeName, IOV)
 
                 ##Loop over all single jobs
-                for singleJob in jobs:
+                for singleJob in singleJobs:
                     ##Get single job info and append to merge job if requirements fullfilled
                     alignment, datasetName, singleIOV = singleJob["name"].split("_")[2:]    
 
@@ -91,5 +92,52 @@ def DMR(config, validationDir):
                 mergeJobs.append(job)
 
         jobs.extend(mergeJobs)
+
+    ##Do trends DMR if wished
+    if "trend" in config["validations"]["DMR"]:
+        if not mergeJobs:
+            raise Exception("You want to create 'trends' jobs, but there are no 'merge' jobs!") 
+
+        ##List with merge jobs, will be expanded to jobs after looping
+        trendJobs = []
+        dmrType = "trend"
+
+        for trendName in config["validations"]["DMR"][dmrType]:
+            ##Work directory for each IOV
+            workDir = "{}/DMR/{}/{}".format(validationDir, dmrType, trendName)
+
+            ##Write job info
+            local = {}
+
+            job = {
+                "name": "DMR_{}_{}".format(dmrType, mergeName),
+                "dir": workDir,
+                "exe": "DMRtrends",
+                "run-mode": "Condor",
+                "dependencies": [],
+                "config": local,
+            }
+
+            for alignment in config["alignments"]:
+                ##Deep copy necessary things from global config
+                local.setdefault("alignments", {})
+                local["alignments"][alignment] = copy.deepcopy(config["alignments"][alignment])
+                local["validation"] = copy.deepcopy(config["validations"]["DMR"][dmrType][trendName])
+                local["output"] = "{}/{}/{}/{}/".format(config["LFS"], config["name"], dmrType, trendName)
+
+            ##Loop over all single jobs
+            for mergeJob in mergeJobs:
+                ##Get single job info and append to merge job if requirements fullfilled
+                alignment, datasetName, mergeIOV = mergeJob["name"].split("_")[1:]    
+
+                if datasetName in config["validations"]["DMR"][dmrType][trendName]["merge"]:
+                    job["dependencies"].append(mergeJob["name"])
+                    local["validation"]["variables"] = config["validations"]["DMR"]["merge"][datasetName]["methods"]
+                    local["validation"].setdefault("IOV", []).append(mergeIOV)
+                    local.setdefault("input", []).append("{}/OfflineValidationSummary.root".format(mergeJob["config"]["output"]))
+
+            trendJobs.append(job)
+
+        jobs.extend(trendJobs)
 
     return jobs

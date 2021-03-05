@@ -70,18 +70,9 @@ process.maxEvents = cms.untracked.PSet(
 
 ##Bookeeping
 process.options = cms.untracked.PSet(
-   wantSummary = cms.untracked.bool(False),
-   Rethrow = cms.untracked.vstring("ProductNotFound"),
-   fileMode  =  cms.untracked.string('NOMERGE'),
-)
-
-process.load("FWCore.MessageLogger.MessageLogger_cfi")
-process.MessageLogger = cms.Service("MessageLogger",
-       destinations   = cms.untracked.vstring('cerr'),
-       cerr       = cms.untracked.PSet(
-                    threshold = cms.untracked.string('ERROR')
-        )
-
+    wantSummary = cms.untracked.bool(False),
+    Rethrow = cms.untracked.vstring("ProductNotFound"),
+    fileMode  =  cms.untracked.string('NOMERGE'),
 )
 
 ##Basic modules
@@ -108,7 +99,7 @@ process.seqTrackselRefit = trackselRefit.getSequence(process,
 #Global tag
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, config["alignment"].get("globaltag", "auto:phase1_2017_realistic"))
+process.GlobalTag = GlobalTag(process.GlobalTag, config["alignment"].get("globaltag", "run2_data"))
 
 ##Load conditions if wished
 if "conditions" in config["alignment"]:
@@ -116,13 +107,13 @@ if "conditions" in config["alignment"]:
 
     for condition in config["alignment"]["conditions"]:
         setattr(process, "conditionsIn{}".format(condition), poolDBESSource.clone(
-             connect = cms.string(str(config["alignment"]["conditions"][condition]["connect"])),
-             toGet = cms.VPSet(
+                connect = cms.string(str(config["alignment"]["conditions"][condition]["connect"])),
+                toGet = cms.VPSet(
                         cms.PSet(
-                                 record = cms.string(str(condition)),
-                                 tag = cms.string(str(config["alignment"]["conditions"][condition]["tag"]))
-                        )
-                     )
+                        record = cms.string(str(condition)),
+                        tag = cms.string(str(config["alignment"]["conditions"][condition]["tag"]))
+                    )
+                )
             )
         )
 
@@ -290,6 +281,3 @@ if valiMode == "DQM":
 
 ##Let all sequences run
 process.p = cms.Path(process.seqTrackselRefit*seqTrackerOfflineValidation)
-
-for i in str(process.p).split("+"):
-    print(getattr(process, i).dumpPython())

@@ -1,4 +1,4 @@
 #include "Alignment/OfflineValidation/interface/TkOffTreeVariables.h"
 #include "Alignment/OfflineValidation/interface/pvTree.h"
 #include "Alignment/OfflineValidation/interface/EopVariables.h"
-#include "Alignment/OfflineValidation/interface/outTrends.h"
+#include "Alignment/OfflineValidation/interface/SmartSelectionMonitor.h"

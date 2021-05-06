@@ -15,3 +15,5 @@
 <bin name="DMRtrends" file="DMRtrends.cc,Options.cc" />
 <bin name="PVtrends" file="PVtrends.cc,Options.cc" />
 <bin name="SplitVmerge" file="SplitVmerge.cc,Options.cc" />
+<bin name="GCP" file="GCP.cc,Options.cc" />
+<bin name="jetHtPlotter" file="jetHtPlotter.cc,JetHtPlotConfiguration.cc" />

@@ -1,6 +1,6 @@
 {    
-    "LFS": "$CMSSW_BASE/src/UnitTest",
-    "name": "test_json",
+    "LFS": "/eos/cms/store/group/alca_trackeralign/AlignmentValidation/AlignmentValidation/CMSSW_test_units",
+    "name": "test_json_new",
     "alignments": {
         "unitTest": {
            "color": "1",
@@ -8,17 +8,11 @@
            "style": "2101",
            "title": "unit test"
         },
-	"prompt": {
-           "color": "600",
-           "globaltag": "auto:run3_data_promptlike",
-           "style": "2101",
-           "title": "prompt"
-        },
-	"legacy": {
-           "color": "418",
+        "unitTestJetHT": {
+           "color": "1",
            "globaltag": "auto:run2_data",
            "style": "2101",
-           "title": "legacy"
+           "title": "unit test"
         }
     },
     "validations": {
@@ -109,6 +103,59 @@
                     }
                  }
              }
+        },
+        "JetHT": {
+            "single": {
+                "testJob": {
+                    "alignments": ["unitTestJetHT"],
+                    "trackCollection": "ALCARECOTkAlMinBias"
+                },
+                "testMC": {
+                    "alignments": ["unitTest"],
+                    "trackCollection": "ALCARECOTkAlMinBias",
+                    "mc": "True"
+                }
+            },
+            "merge": {
+                "testJob": {
+                    "singles": ["testJob"],
+                    "alignments": ["unitTestJetHT"]
+                },
+                "testMC": {
+                    "singles": ["testMC"],
+                    "alignments": ["unitTest"]
+                }
+            },
+            "plot": {
+                "testJob": {
+                    "merges": ["testJob"],
+                    "alignments": ["unitTestJetHT"],
+                    "jethtplot":{
+                        "drawProfiles": {
+                            "drawDzErrorVsPt": true,
+                            "drawDxyErrorVsPt": true
+                        },
+                        "drawHistograms": {
+                            "drawDz": true,
+                            "drawDxy": true
+                        }
+                    }
+                },
+                "testMC": {
+                    "merges": ["testMC"],
+                    "alignments": ["unitTest"],
+                    "jethtplot":{
+                        "drawProfiles": {
+                            "drawDzErrorVsPt": true,
+                            "drawDxyErrorVsPt": true
+                        },
+                        "drawHistograms": {
+                            "drawDz": true,
+                            "drawDxy": true
+                        }
+                    }
+                }
+            }
         }
     },
     "lines": {

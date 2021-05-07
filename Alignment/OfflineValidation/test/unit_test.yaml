@@ -116,12 +116,14 @@ validations:
                 alignments:
                 - unitTestJetHT
                 trackCollection: ALCARECOTkAlMinBias
+                maxevents: 10
 
             testMC:
                 alignments:
                 - unitTest
                 trackCollection: ALCARECOTkAlMinBias
                 mc: True
+                maxevents: 10
         merge:
             testJob:
                 singles:

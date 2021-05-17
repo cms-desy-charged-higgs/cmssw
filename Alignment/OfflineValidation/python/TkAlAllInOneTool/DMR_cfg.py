@@ -8,6 +8,7 @@ from Alignment.OfflineValidation.TkAlAllInOneTool.utils import _byteify
 
 import json
 import os
+import sys
 
 ##Define process
 process = cms.Process("OfflineValidator")
@@ -15,6 +16,7 @@ process = cms.Process("OfflineValidator")
 ##Argument parsing
 options = VarParsing()
 options.register("config", "", VarParsing.multiplicity.singleton, VarParsing.varType.string , "AllInOne config")
+options.register("isCrab", False, VarParsing.multiplicity.singleton, VarParsing.varType.bool , "Bool to check if this is a crab job")
 
 options.parseArguments()
 
@@ -55,7 +57,7 @@ if "goodlumi" in config["validation"]:
         goodLumiSecs = cms.untracked.VLuminosityBlockRange(LumiList.LumiList(filename = config["validation"]["goodlumi"]).getCMSSWString().split(','))
 
     else:
-        print("Does not exist: {}. Continue without good lumi section file.")
+        print("Does not exist: {}. Continue without good lumi section file.".format(config["validation"]["goodlumi"]))
         goodLumiSecs = cms.untracked.VLuminosityBlockRange()
 
 else:
@@ -74,6 +76,9 @@ process.options = cms.untracked.PSet(
     Rethrow = cms.untracked.vstring("ProductNotFound"),
     fileMode  =  cms.untracked.string('NOMERGE'),
 )
+
+process.load("FWCore.MessageService.MessageLogger_cfi")
+process.MessageLogger.cerr.FwkReport.reportEvery = 100
 
 ##Basic modules
 process.load("RecoVertex.BeamSpotProducer.BeamSpot_cff")
@@ -99,7 +104,7 @@ process.seqTrackselRefit = trackselRefit.getSequence(process,
 #Global tag
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, config["alignment"].get("globaltag", "run2_data"))
+process.GlobalTag = GlobalTag(process.GlobalTag, config["alignment"].get("globaltag", "auto:run2_data"))
 
 ##Load conditions if wished
 if "conditions" in config["alignment"]:
@@ -228,7 +233,7 @@ if valiMode == "StandAlone":
     ##Output file
 
     process.TFileService = cms.Service("TFileService",
-            fileName = cms.string("{}/DMR.root".format(config.get("output", os.getcwd()))),
+            fileName = cms.string("{}/DMR.root".format(config.get("output", os.getcwd())) if not options.isCrab else "DMR.root"),
             closeFileFast = cms.untracked.bool(True),
     )
 

@@ -24,7 +24,6 @@ def parser():
     parser.add_argument("-f", "--force", action = "store_true", help ="Force creation of enviroment, possible overwritten old configuration")
     parser.add_argument("-j", "--job-flavour", action = "store", default = "longlunch", choices = ["espresso", "microcentury", "longlunch", "workday", "tomorrow", "testmatch", "nextweek"], help ="Job flavours for HTCondor at CERN, default is 'longlunch'")
 
-
     return parser.parse_args()
 
 def main():
@@ -69,6 +68,7 @@ def main():
 
     ##List with all jobs
     jobs = []
+    needCrab = False
 
     ##Check in config for all validation and create jobs
     for validation in config["validations"]:
@@ -90,7 +90,7 @@ def main():
     ##Create dir for DAG file and loop over all jobs
     subprocess.call(["mkdir", "-p", "{}/DAG/".format(validationDir)] + (["-v"] if args.verbose else []))
 
-    with open("{}/DAG/dagFile".format(validationDir), "w") as dag:
+    with open("{}/DAG/dagFile".format(validationDir), "w") as dag, open("{}/crabInfo.csv".format(validationDir), "w") as crabInfo:
         for job in jobs:
             ##Create job dir, output dir
             subprocess.call(["mkdir", "-p", job["dir"]] + (["-v"] if args.verbose else []))
@@ -125,12 +125,11 @@ def main():
                     print("Write shell executable: '{}'".format("{}/run.sh".format(job["dir"])))
 
                 runContent = [
-                    "#!/bin/bash",
-                    "cd $CMSSW_BASE/src",
+                    "#!/bin/bash\n",
                     "source /cvmfs/cms.cern.ch/cmsset_default.sh",
-                    "eval `scram runtime -sh`",
-                    "cd {}".format(job["dir"]),
-                    "./{} {}validation.json".format(job["exe"], "validation_cfg.py config=" if "cms-config" in job else ""),
+                    "(cd $CMSSW_BASE/src && eval `scram runtime -sh`)\n",
+                    "export DIR={}\n".format(job["dir"]),
+                    "$DIR/{} {}$DIR/validation.json".format(job["exe"], "$DIR/validation_cfg.py config=" if "cms-config" in job else ""),
                 ]
 
                 for line in runContent:
@@ -159,21 +158,32 @@ def main():
                 for line in subContent:
                     subFile.write(line + "\n")
 
-            ##Write command in dag file
-            dag.write("JOB {} condor.sub DIR {}\n".format(job["name"], job["dir"]))
+            ##Write DAGman file and/or file for information for crab submission
+            if job["run-mode"] == "Crab":
+                needCrab = True
+                crabInfo.write("\t".join([job["name"], job["dir"]]) + "\n")
 
-            if job["dependencies"]:
-                dag.write("\n")
-                dag.write("PARENT {} CHILD {}".format(" ".join(job["dependencies"]), job["name"]))
+            elif job["run-mode"] == "Condor":
+                dag.write("JOB {} condor.sub DIR {}\n".format(job["name"], job["dir"]))
 
-            dag.write("\n\n")
+                if job["dependencies"]:
+                    dag.write("\n")
+                    dag.write("PARENT {} CHILD {}".format(" ".join(job["dependencies"]), job["name"]))
+
+                dag.write("\n\n")
+
+            else:
+                raise RuntimeError("Invalid job run mode: {}".format(job["run-mode"]))
 
     if args.verbose:
         print("DAGman config has been written: '{}'".format("{}/DAG/dagFile".format(validationDir)))            
 
-    ##Call submit command if not dry run
+    ##Call submit command if not dry run and no crab jobs for submission
     if args.dry:
-        print("Enviroment is set up. If you want to submit everything, call 'condor_submit_dag {}/DAG/dagFile'".format(validationDir))
+        print("Enviroment is set up. If you want to submit everything, call 'condor_submit_dag {}/DAG/dagFile'.\nIf crab is needed, first call 'validateWithCrab.py {}/crabInfo.csv' to submit crab jobs".format(validationDir, validationDir))
+
+    elif needCrab:
+        print("Enviroment is set up. Some of your jobs needs crab for submission. To start the submission chain, use 'validateWithCrab.py {}/crabInfo.csv'".format(validationDir))
 
     else:
         subprocess.call(["condor_submit_dag", "{}/DAG/dagFile".format(validationDir)])

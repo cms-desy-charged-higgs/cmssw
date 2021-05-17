@@ -28,6 +28,7 @@ def DMR(config, validationDir):
                 local["output"] = "{}/{}/{}/{}/{}/{}".format(config["LFS"], config["name"], dmrType, alignment, datasetName, IOV)
                 local["alignment"] = copy.deepcopy(config["alignments"][alignment])
                 local["validation"] = copy.deepcopy(config["validations"]["DMR"][dmrType][datasetName])
+                local["validation"]["dataset"] = local["validation"]["dataset"].format(IOV)
                 local["validation"].pop("alignments")
                 local["validation"]["IOV"] = IOV
                 if "goodlumi" in local["validation"]:
@@ -39,7 +40,7 @@ def DMR(config, validationDir):
                     "dir": workDir,
                     "exe": "cmsRun",
                     "cms-config": "{}/src/Alignment/OfflineValidation/python/TkAlAllInOneTool/DMR_cfg.py".format(os.environ["CMSSW_BASE"]),
-                    "run-mode": "Condor",
+                    "run-mode": config["validations"]["DMR"][dmrType][datasetName].get("run-mode", "Condor"),
                     "dependencies": [],
                     "config": local, 
                 }
@@ -85,7 +86,7 @@ def DMR(config, validationDir):
                     ##Get single job info and append to merge job if requirements fullfilled
                     alignment, datasetName, singleIOV = singleJob["name"].split("_")[2:]    
 
-                    if int(singleIOV) == IOV and datasetName in config["validations"]["DMR"][dmrType][mergeName]["singles"]:
+                    if int(singleIOV) == IOV and datasetName in config["validations"]["DMR"][dmrType][mergeName]["singles"] and singleJob["run-mode"] != "Crab":
                         local["alignments"][alignment]["file"] = singleJob["config"]["output"]
                         job["dependencies"].append(singleJob["name"])
                         

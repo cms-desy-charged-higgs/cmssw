@@ -68,7 +68,6 @@ def main():
 
     ##List with all jobs
     jobs = []
-    needCrab = False
 
     ##Check in config for all validation and create jobs
     for validation in config["validations"]:
@@ -90,7 +89,7 @@ def main():
     ##Create dir for DAG file and loop over all jobs
     subprocess.call(["mkdir", "-p", "{}/DAG/".format(validationDir)] + (["-v"] if args.verbose else []))
 
-    with open("{}/DAG/dagFile".format(validationDir), "w") as dag, open("{}/crabInfo.csv".format(validationDir), "w") as crabInfo:
+    with open("{}/DAG/dagFile".format(validationDir), "w") as dag:
         for job in jobs:
             ##Create job dir, output dir
             subprocess.call(["mkdir", "-p", job["dir"]] + (["-v"] if args.verbose else []))
@@ -100,11 +99,16 @@ def main():
             ##Create symlink for executable/python cms config if needed
             subprocess.call("cp -f $(which {}) {}".format(job["exe"], exeDir) + (" -v" if args.verbose else ""), shell = True)
             subprocess.call(["ln", "-fs", "{}/{}".format(exeDir, job["exe"]), job["dir"]] + (["-v"] if args.verbose else []))
+
             if "cms-config" in job:
                 cmsConfig = job["cms-config"].split("/")[-1]
 
                 subprocess.call(["cp", "-f", job["cms-config"], "{}/{}".format(cmsconfigDir, cmsConfig)] + (["-v"] if args.verbose else []))
                 subprocess.call(["ln", "-fs", "{}/{}".format(cmsconfigDir, cmsConfig), "{}/validation_cfg.py".format(job["dir"])] + (["-v"] if args.verbose else []))
+
+            if job["run-mode"] == "Crab":
+                subprocess.call("cp -f $(which crabJob.py) {}".format(exeDir) + (" -v" if args.verbose else ""), shell = True)
+                subprocess.call(["ln", "-fs", "{}/crabJob.py".format(exeDir), job["dir"]] + (["-v"] if args.verbose else []))
 
             ##Write local config file 
             with open("{}/validation.json".format(job["dir"]), "w") as jsonFile:
@@ -124,12 +128,26 @@ def main():
                 if args.verbose:
                     print("Write shell executable: '{}'".format("{}/run.sh".format(job["dir"])))
 
+                ##Define exe commands
+                exeString = ""
+
+                if job["run-mode"] == "Crab":
+                    exeString = "$DIR/crabJob.py $DIR -n {}".format(job["name"])
+
+                elif "cms-config" in job:
+                    exeString = "$DIR/{} $DIR/validation_cfg.py config=$DIR/validation.json".format(job["exe"])
+
+                else:
+                    exeString = "$DIR/{} $DIR/validation.json".format(job["exe"])
+
                 runContent = [
                     "#!/bin/bash\n",
                     "source /cvmfs/cms.cern.ch/cmsset_default.sh",
-                    "(cd $CMSSW_BASE/src && eval `scram runtime -sh`)\n",
+                    "cd $CMSSW_BASE/src",
+                    "eval `scram runtime -sh`\n",
+                    "source /cvmfs/cms.cern.ch/crab3/crab.sh\n" if job["run-mode"] == "Crab" else "",
                     "export DIR={}\n".format(job["dir"]),
-                    "$DIR/{} {}$DIR/validation.json".format(job["exe"], "$DIR/validation_cfg.py config=" if "cms-config" in job else ""),
+                    exeString,
                 ]
 
                 for line in runContent:
@@ -159,34 +177,23 @@ def main():
                     subFile.write(line + "\n")
 
             ##Write DAGman file and/or file for information for crab submission
-            if job["run-mode"] == "Crab":
-                needCrab = True
-                crabInfo.write("\t".join([job["name"], job["dir"]]) + "\n")
+            dag.write("JOB {} condor.sub DIR {}\n".format(job["name"], job["dir"]))
 
-            elif job["run-mode"] == "Condor":
-                dag.write("JOB {} condor.sub DIR {}\n".format(job["name"], job["dir"]))
+            if job["dependencies"]:
+                dag.write("\n")
+                dag.write("PARENT {} CHILD {}".format(" ".join(job["dependencies"]), job["name"]))
 
-                if job["dependencies"]:
-                    dag.write("\n")
-                    dag.write("PARENT {} CHILD {}".format(" ".join(job["dependencies"]), job["name"]))
-
-                dag.write("\n\n")
-
-            else:
-                raise RuntimeError("Invalid job run mode: {}".format(job["run-mode"]))
+            dag.write("\n\n")
 
     if args.verbose:
         print("DAGman config has been written: '{}'".format("{}/DAG/dagFile".format(validationDir)))            
-
-    ##Call submit command if not dry run and no crab jobs for submission
+        
+    ##Call submit command if not dry run
     if args.dry:
-        print("Enviroment is set up. If you want to submit everything, call 'condor_submit_dag {}/DAG/dagFile'.\nIf crab is needed, first call 'validateWithCrab.py {}/crabInfo.csv' to submit crab jobs".format(validationDir, validationDir))
-
-    elif needCrab:
-        print("Enviroment is set up. Some of your jobs needs crab for submission. To start the submission chain, use 'validateWithCrab.py {}/crabInfo.csv'".format(validationDir))
+        print("Enviroment is set up. If you want to submit everything, call 'condor_submit_dag {}/DAG/dagFile'".format(validationDir))
 
     else:
         subprocess.call(["condor_submit_dag", "{}/DAG/dagFile".format(validationDir)])
-        
+
 if __name__ == "__main__":
     main()

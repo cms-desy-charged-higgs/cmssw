@@ -13,6 +13,7 @@ import sys
 import Alignment.OfflineValidation.TkAlAllInOneTool.GCP as GCP
 import Alignment.OfflineValidation.TkAlAllInOneTool.DMR as DMR
 import Alignment.OfflineValidation.TkAlAllInOneTool.PV as PV
+import Alignment.OfflineValidation.TkAlAllInOneTool.MTS as MTS
 import Alignment.OfflineValidation.TkAlAllInOneTool.SplitV as SplitV
 
 def parser():
@@ -82,6 +83,9 @@ def main():
 
         elif validation == "SplitV":
             jobs.extend(SplitV.SplitV(config, validationDir))
+
+        elif validation == "MTS":
+            jobs.extend(MTS.MTS(config, validationDir))
 
         else:
             raise Exception("Unknown validation method: {}".format(validation)) 

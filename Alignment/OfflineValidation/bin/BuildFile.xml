@@ -1,6 +1,10 @@
 <flags CXXFLAGS="-g -Wall -DDEBUG -O3 -Wall -std=c++17 -lASImage" />
 
 <use name="root" />
+<use name="rootmath"/>
+<use name="roothistmatrix"/>
+<use name="rootrio"/>
+<use name="rootcore"/>
 <use name="rootgraphics"/>
 <use name="boost" />
 <use name="boost_program_options"/>
@@ -12,3 +16,4 @@
 <bin name="PVmerge" file="PVmerge.cc,Options.cc" />
 <bin name="DMRtrends" file="DMRtrends.cc,Options.cc" />
 <bin name="SplitVmerge" file="SplitVmerge.cc,Options.cc" />
+<bin name="MTS" file="MTS.cc,Options.cc" />

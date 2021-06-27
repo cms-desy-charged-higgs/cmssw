@@ -164,6 +164,7 @@
     "style":{
         "CMSlabel": "Internal",
         "trends":{
+             "earlyStops": ["unitTest"],
              "lines": {
                  "pixel": {
                       "line": {

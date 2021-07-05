@@ -95,11 +95,11 @@ process.seqTrackselRefit = trackselRefit.getSequence(process,
                                                      TTRHBuilder = config["validation"].get("tthrbuilder", "WithAngleAndTemplate"),
                                                      usePixelQualityFlag=config["validation"].get("usePixelQualityFlag", True),
                                                      openMassWindow = False,
-                                                     cosmicsDecoMode = True,
+                                                     cosmicsDecoMode = config["validation"].get("cosmicsDecoMode", True),
                                                      cosmicsZeroTesla= config["validation"].get("cosmicsZeroTesla", False),
                                                      momentumConstraint = None,
                                                      cosmicTrackSplitting = True,
-                                                     use_d0cut = True,
+                                                     use_d0cut = False,
 )
 
 #Global tag
@@ -108,6 +108,9 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, config["alignment"].get("globaltag", "auto:run2_data"))
 
 ##Load conditions if wished
+if "mp" in config["alignment"]:
+    pass ##FIXME Add proper function here to start
+
 if "conditions" in config["alignment"]:
     from CalibTracker.Configuration.Common.PoolDBESSource_cfi import poolDBESSource
 
@@ -134,7 +137,7 @@ if "subdetector" in config["validation"]:
     setattr(process.AlignmentTrackSelector.minHitsPerSubDet, "in{}".format(config["validation"]["subdetector"]), 2)
 
 ## Configure EDAnalyzer
-"""process.cosmicValidation = cms.EDAnalyzer("CosmicSplitterValidation",
+process.cosmicValidation = cms.EDAnalyzer("CosmicSplitterValidation",
     ifSplitMuons = cms.bool(False),
     ifTrackMCTruth = cms.bool(False),	
     checkIfGolden = cms.bool(False),	
@@ -142,7 +145,7 @@ if "subdetector" in config["validation"]:
     splitGlobalMuons = cms.InputTag("muons","","splitter"),
     originalTracks = cms.InputTag("FirstTrackRefitter","","splitter"),
     originalGlobalMuons = cms.InputTag("muons","","Rec")
-)"""
+)
 
 ##Output file
 process.TFileService = cms.Service("TFileService",

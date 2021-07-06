@@ -16,4 +16,4 @@
 <bin name="PVmerge" file="PVmerge.cc,Options.cc" />
 <bin name="DMRtrends" file="DMRtrends.cc,Options.cc" />
 <bin name="SplitVmerge" file="SplitVmerge.cc,Options.cc" />
-<bin name="MTS" file="MTS.cc,Options.cc" />
+<bin name="MTSmerge" file="MTSmerge.cc,Options.cc" />

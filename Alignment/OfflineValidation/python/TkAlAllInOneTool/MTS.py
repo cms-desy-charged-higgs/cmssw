@@ -6,20 +6,22 @@ def MTS(config, validationDir):
     jobs = []
 
     for datasetName in config["validations"]["MTS"]:
+        mergeDependencies = []
+
         for alignment in config["validations"]["MTS"][datasetName]["alignments"]:
             ##Work directory for each IOV
-            workDir = "{}/MTS/{}/{}/".format(validationDir, datasetName, alignment)
+            workDir = "{}/MTS/single/{}/{}/".format(validationDir, datasetName, alignment)
 
             ##Write local config
             local = {}
-            local["output"] = "{}/{}/{}/{}".format(config["LFS"], config["name"], alignment, datasetName)
+            local["output"] = "{}/{}/single/{}/{}".format(config["LFS"], config["name"], alignment, datasetName)
             local["alignment"] = copy.deepcopy(config["alignments"][alignment])
             local["validation"] = copy.deepcopy(config["validations"]["MTS"][datasetName])
             local["validation"].pop("alignments")
 
             ##Write job info
             job = {
-                "name": "MTS_{}_{}".format(datasetName, alignment),
+                "name": "MTS_single_{}_{}".format(datasetName, alignment),
                 "dir": workDir,
                 "exe": "cmsRun",
                 "cms-config": "{}/src/Alignment/OfflineValidation/python/TkAlAllInOneTool/MTS_cfg.py".format(os.environ["CMSSW_BASE"]),
@@ -28,6 +30,29 @@ def MTS(config, validationDir):
                 "config": local, 
             }
 
+            mergeDependencies.append(job["name"])
             jobs.append(job)
 
+        ##Work directory for each IOV
+        workDir = "{}/MTS/merge/{}/".format(validationDir, datasetName)
+
+        ##Write local config
+        local = {}
+        local["output"] = "{}/{}/merge/{}".format(config["LFS"], config["name"], datasetName)
+        local["alignment"] = copy.deepcopy(config["alignments"])
+        local["validation"] = copy.deepcopy(config["validations"]["MTS"][datasetName])
+        local["validation"].pop("alignments")
+
+        ##Write job info
+        job = {
+            "name": "MTS_merge_{}".format(datasetName),
+            "dir": workDir,
+            "exe": "MTSmerge",
+            "run-mode": "Condor",
+            "dependencies": mergeDependencies,
+            "config": local, 
+        }
+
+        jobs.append(job)
+        
     return jobs

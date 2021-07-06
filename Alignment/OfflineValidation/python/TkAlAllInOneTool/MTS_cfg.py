@@ -20,8 +20,6 @@ with open(options.config, "r") as configFile:
     config = json.load(configFile)
 
 ##Load common configuration
-##Define process
-process = cms.Process("OfflineValidator")
 
 ##Argument parsing
 options = VarParsing()
@@ -68,7 +66,7 @@ process.source.lumisToProcess = goodLumiSecs
 
 ##default set to 1 for unit tests
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(config["validation"].get("maxevents", 1))
+    input = cms.untracked.int32(config["validation"].get("maxevents", -1))
 )
 
 ##Bookeeping
@@ -90,7 +88,7 @@ process.load("Configuration.StandardSequences.MagneticField_cff")
 ##Track fitting
 import Alignment.CommonAlignment.tools.trackselectionRefitting as trackselRefit
 process.seqTrackselRefit = trackselRefit.getSequence(process,
-                                                     config["validation"].get("trackcollection", "generalTracks"),
+                                                     config["validation"].get("trackcollection", "ctfWithMaterialTracksP5"),
                                                      isPVValidation = False, 
                                                      TTRHBuilder = config["validation"].get("tthrbuilder", "WithAngleAndTemplate"),
                                                      usePixelQualityFlag=config["validation"].get("usePixelQualityFlag", True),
@@ -120,7 +118,8 @@ if "conditions" in config["alignment"]:
                 toGet = cms.VPSet(
                         cms.PSet(
                         record = cms.string(str(condition)),
-                        tag = cms.string(str(config["alignment"]["conditions"][condition]["tag"]))
+                        tag = cms.string(str(config["alignment"]["conditions"][condition].get("tag", ""))),
+                        label = cms.untracked.string(str(config["alignment"]["conditions"][condition].get("label", ""))),
                     )
                 )
             )
@@ -141,13 +140,12 @@ process.cosmicValidation = cms.EDAnalyzer("CosmicSplitterValidation",
     ifSplitMuons = cms.bool(False),
     ifTrackMCTruth = cms.bool(False),	
     checkIfGolden = cms.bool(False),	
-    splitTracks = cms.InputTag("FinalTrackRefitter","","splitter"),
-    splitGlobalMuons = cms.InputTag("muons","","splitter"),
-    originalTracks = cms.InputTag("FirstTrackRefitter","","splitter"),
+    splitTracks = cms.InputTag("FinalTrackRefitter","","MuonTrackSplit"), ## <--- Needs to be the same as the cms.Process(...) name
+    splitGlobalMuons = cms.InputTag("muons","","MuonTrackSplit"),
+    originalTracks = cms.InputTag("FirstTrackRefitter","","MuonTrackSplit"),
     originalGlobalMuons = cms.InputTag("muons","","Rec")
 )
 
-##Output file
 process.TFileService = cms.Service("TFileService",
     fileName = cms.string("{}/MTS.root".format(config["output"])),
     closeFileFast = cms.untracked.bool(True),

@@ -168,47 +168,10 @@ TH1F *ConvertToHist(TGraphErrors *g);
 const map<TString, int> numberOfLayers(TString Year = "2018");
 vector<int> runlistfromlumifile(TString lumifile = "/afs/cern.ch/work/a/acardini/Alignment/MultiIOV/CMSSW_10_5_0_pre2/src/Alignment/OfflineValidation/data/lumiperFullRun2.txt");
 bool checkrunlist(vector<int> runs, vector<int> IOVlist = {});
-TString lumifileperyear(TString Year = "2018", string RunOrIOV = "IOV");
+TString lumifileperyear(TString Year, string RunOrIOV);
 void scalebylumi(TGraphErrors *g, vector<pair<int, double>> lumiIOVpairs);
-vector<pair<int, double>> lumiperIOV(vector<int> IOVlist, TString Year = "2018");
+vector<pair<int, double>> lumiperIOV(vector<int> IOVlist, TString Year);
 double getintegratedlumiuptorun(int run, TString lumifile, double min = 0.);
-void PixelUpdateLines(TCanvas *c,
-                      TString lumifile = "/afs/cern.ch/work/a/acardini/Alignment/MultiIOV/CMSSW_10_5_0_pre2/src/Alignment/OfflineValidation/data/lumiperFullRun2.txt",
-                      bool showlumi = false,
-                      vector<int> pixelupdateruns = {314881, 316758, 317527, 318228, 320377});
-void PlotDMRTrends(
-    TString Variable = "median",
-    TString Year = "2018",
-    vector<string> geometries = {"GT", "SG", "MP pix LBL", "PIX HLS+ML STR fix"},
-    vector<Color_t> colours = {kBlue, kRed, kGreen, kCyan},
-    TString outputdir =
-        "/afs/cern.ch/cms/CAF/CMSALCA/ALCA_TRACKERALIGN/data/commonValidation/alignmentObjects/acardini/DMRsTrends/",
-    vector<int> pixelupdateruns = {314881, 316758, 317527, 318228, 320377},
-    bool showlumi = false,
-    TString lumifile = "/afs/cern.ch/work/a/acardini/Alignment/MultiIOV/CMSSW_10_5_0_pre2/src/Alignment/OfflineValidation/data/lumiperFullRun2.txt",
-    vector<pair<int,double>> lumiIOVpairs = {make_pair(0,0.),make_pair(0,0.)});
-void compileDMRTrends(
-    vector<int> IOVlist,
-    TString Variable = "median",
-    TString Year = "2018",
-    std::vector<std::string> inputFiles = {},
-    TString outDir = "",
-    vector<string> geometries = {"GT", "SG", "MP pix LBL", "PIX HLS+ML STR fix"},
-    bool showlumi = false,
-    bool FORCE = false);
-void DMRtrends(
-    vector<int> IOVlist,
-    vector<string> Variables = {"median", "DrmsNR"},
-    TString Year = "2018",
-    std::vector<std::string> inputFiles = {},
-    vector<string> geometries = {"GT", "SG", "MP pix LBL", "PIX HLS+ML STR fix"},
-    vector<Color_t> colours = {kBlue, kRed, kGreen, kCyan},
-    TString outputdir =
-        "/afs/cern.ch/cms/CAF/CMSALCA/ALCA_TRACKERALIGN/data/commonValidation/alignmentObjects/acardini/DMRsTrends/",
-    vector<int> pixelupdateruns = {314881, 316758, 317527, 318228, 320377},
-    bool showlumi = false,
-    TString lumifile = "/afs/cern.ch/work/a/acardini/Alignment/MultiIOV/CMSSW_10_5_0_pre2/src/Alignment/OfflineValidation/data/lumiperFullRun2.txt",
-    bool FORCE = false);
 
 /*! \class Geometry
  *  \brief Class Geometry
@@ -366,66 +329,6 @@ bool checkrunlist(vector<int> runs, vector<int> IOVlist) {
   return problemfound;
 }
 
-/*! \fn DMRtrends
- *  \brief Create and plot the DMR trends.
- */
-
-void DMRtrends(vector<int> IOVlist,
-               vector<string> Variables,
-               TString Year,
-               std::vector<std::string> inputFiles,
-               vector<string> geometries,
-               vector<Color_t> colours,
-               TString outputdir,
-               vector<int> pixelupdateruns,
-               bool showlumi,
-	       TString lumifile,
-               bool FORCE) {
-  fs::path path(outputdir.Data());
-  if (!(fs::exists(path))) {
-    cout << "WARNING: Output directory (" << outputdir.Data() << ") not found, it will be created automatically!"
-         << endl;
-    //	exit(EXIT_FAILURE);
-    fs::create_directory(path);
-    if (!(fs::exists(path))) {
-      cout << "ERROR: Output directory (" << outputdir.Data() << ") has not been created!" << endl
-           << "At least the parent directory needs to exist, please check!" << endl;
-      exit(EXIT_FAILURE);
-    }
-  }
-  
-  TString LumiFile = getenv("CMSSW_BASE");
-  if(lumifile.BeginsWith("/")) LumiFile=lumifile;
-  else {
-    LumiFile += "/src/Alignment/OfflineValidation/data/";
-    LumiFile += lumifile;
-  }
-  fs::path pathToLumiFile = LumiFile.Data();
-  if(!(fs::exists(pathToLumiFile))) {
-    cout << "ERROR: lumi-per-run file (" << LumiFile.Data() << ") not found!" << endl
-           << "Please check!" << endl;
-    exit(EXIT_FAILURE); 
-  }
-  if(!LumiFile.Contains(Year)){
-    cout << "WARNING: lumi-per-run file and year do not match, luminosity on the x-axis and labels might not match!" <<endl;
-  }
-  vector<pair<int,double>> lumiIOVpairs = lumiperIOV(IOVlist, LumiFile);
-
-  for (TString Variable : Variables) {
-    compileDMRTrends(IOVlist, Variable, Year, inputFiles, outputdir, geometries, showlumi, FORCE);
-    cout << "Begin plotting" << endl;
-    PlotDMRTrends(
-                  Variable,
-                  Year,
-                  geometries,
-                  colours,
-                  outputdir,
-                  pixelupdateruns,
-                  showlumi,
-		  LumiFile,
-		  lumiIOVpairs);
-  }
-};
 
 /*! \fn compileDMRTrends
  *  \brief  Create a file where the DMR trends are stored in the form of TGraph.
@@ -455,8 +358,6 @@ void compileDMRTrends(vector<int> IOVlist,
     int runN = IOVlist.at(i);
 
     TFile *f = new TFile(inputFiles.at(i).c_str(), "READ");
-
-    std::cout << inputFiles.at(i) << std::endl;
 
     for (TString &structure : structures) {
       TString structname = structure;
@@ -1030,10 +931,9 @@ void PlotDMRTrends(
         size_t igeom = 0;
         for (string geometry : geometries) {
           TString name = Variable + "_" + getName(structure, layer, geometry);
-          std::cout << name + "_" + variables.at(i) << std::endl;
           
           TGraphErrors *g = dynamic_cast<TGraphErrors *>(in->Get(name + "_" + variables.at(i)));
-          g->Print();
+        //  g->Print();
           g->SetName(name + "_" + variables.at(i));
           if (i >= 8) {
             g->SetLineWidth(1);
@@ -1258,6 +1158,66 @@ void PlotDMRTrends(
  *                                 Eventual errors while running the code will be ignored and just warnings will appear in the output.
  */
 
+/*! \fn DMRtrends
+ *  \brief Create and plot the DMR trends.
+ */
+
+void DMRtrends(vector<int> IOVlist,
+               vector<string> Variables,
+               TString Year,
+               std::vector<std::string> inputFiles,
+               vector<string> geometries,
+               vector<Color_t> colours,
+               TString outputdir,
+               vector<int> pixelupdateruns,
+               bool showlumi,
+               TString lumifile,
+               bool FORCE) {
+  fs::path path(outputdir.Data());
+  if (!(fs::exists(path))) {
+    cout << "WARNING: Output directory (" << outputdir.Data() << ") not found, it will be created automatically!"
+         << endl;
+    //	exit(EXIT_FAILURE);
+    fs::create_directory(path);
+    if (!(fs::exists(path))) {
+      cout << "ERROR: Output directory (" << outputdir.Data() << ") has not been created!" << endl
+           << "At least the parent directory needs to exist, please check!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+  
+  TString LumiFile = getenv("CMSSW_BASE");
+  if(lumifile.BeginsWith("/")) LumiFile=lumifile;
+  else {
+    LumiFile += "/src/Alignment/OfflineValidation/data/";
+    LumiFile += lumifile;
+  }
+  fs::path pathToLumiFile = LumiFile.Data();
+  if(!(fs::exists(pathToLumiFile))) {
+    cout << "ERROR: lumi-per-run file (" << LumiFile.Data() << ") not found!" << endl
+           << "Please check!" << endl;
+    exit(EXIT_FAILURE); 
+  }
+  if(!LumiFile.Contains(Year)){
+    cout << "WARNING: lumi-per-run file and year do not match, luminosity on the x-axis and labels might not match!" <<endl;
+  }
+  vector<pair<int,double>> lumiIOVpairs = lumiperIOV(IOVlist, LumiFile);
+
+  for (TString Variable : Variables) {
+    compileDMRTrends(IOVlist, Variable, Year, inputFiles, outputdir, geometries, showlumi, FORCE);
+    cout << "Begin plotting" << endl;
+    PlotDMRTrends(
+                  Variable,
+                  Year,
+                  geometries,
+                  colours,
+                  outputdir,
+                  pixelupdateruns,
+                  showlumi,
+		  LumiFile,
+		  lumiIOVpairs);
+  }
+};
 
 int trends(int argc, char *argv[]) {
   // parse the command line

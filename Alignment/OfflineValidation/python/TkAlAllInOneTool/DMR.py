@@ -86,7 +86,7 @@ def DMR(config, validationDir):
                     ##Get single job info and append to merge job if requirements fullfilled
                     alignment, datasetName, singleIOV = singleJob["name"].split("_")[2:]    
 
-                    if int(singleIOV) == IOV and datasetName in config["validations"]["DMR"][dmrType][mergeName]["singles"] and singleJob["run-mode"] != "Crab":
+                    if int(singleIOV) == IOV and datasetName in config["validations"]["DMR"][dmrType][mergeName]["singles"]:
                         local["alignments"][alignment]["file"] = singleJob["config"]["output"]
                         job["dependencies"].append(singleJob["name"])
                         

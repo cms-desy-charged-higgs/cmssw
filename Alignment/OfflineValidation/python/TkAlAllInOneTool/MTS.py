@@ -6,6 +6,7 @@ def MTS(config, validationDir):
     jobs = []
 
     for datasetName in config["validations"]["MTS"]:
+        singleOutput = {}
         mergeDependencies = []
 
         for alignment in config["validations"]["MTS"][datasetName]["alignments"]:
@@ -19,13 +20,15 @@ def MTS(config, validationDir):
             local["validation"] = copy.deepcopy(config["validations"]["MTS"][datasetName])
             local["validation"].pop("alignments")
 
+            singleOutput[alignment] = "{}/MTS.root".format(local["output"])
+
             ##Write job info
             job = {
                 "name": "MTS_single_{}_{}".format(datasetName, alignment),
                 "dir": workDir,
                 "exe": "cmsRun",
                 "cms-config": "{}/src/Alignment/OfflineValidation/python/TkAlAllInOneTool/MTS_cfg.py".format(os.environ["CMSSW_BASE"]),
-                "run-mode": "Condor",
+                "run-mode": config["validations"]["MTS"][datasetName].get("run-mode", "Condor"),
                 "dependencies": [],
                 "config": local, 
             }
@@ -40,6 +43,10 @@ def MTS(config, validationDir):
         local = {}
         local["output"] = "{}/{}/merge/{}".format(config["LFS"], config["name"], datasetName)
         local["alignment"] = copy.deepcopy(config["alignments"])
+
+        for a in config["alignments"].keys():
+            local["alignment"][a]["input"] = singleOutput[a]
+
         local["validation"] = copy.deepcopy(config["validations"]["MTS"][datasetName])
         local["validation"].pop("alignments")
 

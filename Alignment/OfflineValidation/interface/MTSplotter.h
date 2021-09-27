@@ -5,6 +5,8 @@
 #include <iostream>
 #include <memory>
 #include <filesystem>
+#include <numeric>
+#include <string>
 
 #include <TFile.h>
 #include <TTree.h>
@@ -13,6 +15,7 @@
 #include <TCanvas.h>
 #include <TStyle.h>
 #include <TProfile.h>
+#include <TParameter.h>
 
 #include <Alignment/OfflineValidation/interface/TkAlStyle.h>
 
@@ -30,10 +33,21 @@ class MTSPlotter {
         std::map<std::string, Binning> binning;    
         std::map<std::string, std::string> axisLabels;
 
+        std::string GetUnit(const std::string& label){
+            std::string unit = "";
+    
+            if(label.find_last_of("(") != std::string::npos and label.find("#eta") == std::string::npos and label.find("#delta") == std::string::npos){
+                unit = label.substr(label.find_last_of("(") + 1, 
+                       label.find_last_of(")") - label.find_last_of("(") - 1);
+            }
+
+            return unit;
+        }
+
         template <typename T, typename = typename std::enable_if<std::is_base_of<TH1, T>::value, bool>::type>
-        T* BuildHist(const bool& isPixel, const std::string& xVar, const std::string& yVar = ""){
+        std::shared_ptr<T> BuildHist(const bool& isPixel, const std::string& xVar, const std::string& yVar = ""){
             //Build either TH1D or TH2D by templating
-            T* hist = new T();
+            std::shared_ptr<T> hist = std::make_shared<T>();
 
             std::string histName = yVar != "" ? xVar + "_VS_" + yVar : xVar;
 
@@ -83,71 +97,22 @@ class MTSPlotter {
             else{
                 hist->SetBins(nBinsX, minX, maxX);
                 hist->GetXaxis()->SetTitle(axisLabels[xVar].c_str());
-                hist->GetYaxis()->SetTitle("Number of tracks");
+
+                std::string binWidth = std::to_string(hist->GetBinWidth(1));
+                binWidth.erase(binWidth.find_last_not_of('0') + 1, std::string::npos); //Remove trailing zeros
+                if(binWidth.size() - 1 == binWidth.find(".")) binWidth.erase(binWidth.size() - 1, std::string::npos);
+
+                //Extract unit from x label (wanted to avoid another map just for units)
+                hist->GetYaxis()->SetTitle(("Number of tracks / " + binWidth + " " + GetUnit(axisLabels[xVar])).c_str());
             }
         
             return hist;
         }
 
     public:
-        MTSPlotter(){
-            //Hardcoded variables, binning, axis labels
-            variables = {"pt",  "eta", "phi", "dz",  "dxy", "theta", "qoverpt"};
-            rel = {1., 1., 1e-3, 1e-4, 1e-4, 1e-3, 1e-3};
-
-            pixelBinFactor = {
-                {"dxy", 10},
-                {"dz", 10},
-                {"Delta_dxy", 10},
-                {"Delta_dz", 10},
-                {"Delta_theta", 10},
-                {"Delta_eta", 2},
-            };
-
-            binning = {
-                {"pt", {38, 5, 100}},
-                {"qoverpt", {35, -0.35, 0.35}},
-                {"dxy", {20, -100, 100}},
-                {"dz", {20, -250, 250}},
-                {"theta", {40, 0, 2.5}},
-                {"eta", {40, -1.2, 1.2}},
-                {"phi", {30, -3.14, 0.}},
-                {"Delta_pt", {30, -0.8, 0.8}},
-                {"Delta_qoverpt", {50, -2.5, 2.5}},
-                {"Delta_dxy", {50, -1250, 1250}},
-                {"Delta_dz", {40, -2000, 2000}},
-                {"Delta_theta", {50, -10, 10}},
-                {"Delta_eta", {30, -0.007, 0.007}},
-                {"Delta_phi", {40, -2, 2}},
-            };
-
-            axisLabels = {
-                {"pt", "p_{T} (GeV)"},
-                {"qoverpt", "q/p_{T} (e/GeV)"},
-                {"dxy", "d_{xy} (cm)"},
-                {"dz", "d_{z} (cm)"},
-                {"theta", "#theta [rad]"},
-                {"eta", "#eta [rad]"},
-                {"phi", "#phi [rad]"},
-                {"Delta_pt", "#Delta p_{T} (GeV)"},
-                {"Delta_qoverpt", "#Delta q/p_{T} (e/GeV)"},
-                {"Delta_dxy", "#Delta d_{xy} (cm)"},
-                {"Delta_dz", "#Delta d_{z} (cm)"},
-                {"Delta_theta", "#Delta#theta [rad]"},
-                {"Delta_eta", "#Delta#eta [rad]"},
-                {"Delta_phi", "#Delta#phi [rad]"},
-                {"Delta_pt_pull", "#Delta p_{T}/#delta(Delta p_{T}) (GeV)"},
-                {"Delta_qoverpt_pull", "#Delta q/p_{T}/#delta(#Delta q/p_{T}) (e/GeV)"},
-                {"Delta_dxy_pull", "#Delta d_{xy}/#delta(#Delta d_{xy}) (cm)"},
-                {"Delta_dz_pull", "#Delta d_{z}/#delta(#Delta d_{z}) (cm)"},
-                {"Delta_theta_pull", "#Delta#theta/#delta(#Delta#theta) [rad]"},
-                {"Delta_eta_pull", "#Delta#eta/#delta(#Delta#eta) [rad]"},
-                {"Delta_phi_pull", "#Delta#phi/#delta(#Delta#phi) [rad]"},
-            };
-        }
-
-        std::string ProduceHists(const std::string& inputFile, const std::string& outDir, const std::string& alignName);
-        void Plot(const std::vector<std::string>& histFiles, const std::string& outDir, const std::vector<int>& colors, const std::vector<int>& styles, const std::vector<std::string>& titles);
+        MTSPlotter();
+        std::string ProduceHists(const std::string& inputFile, const std::string& outDir, const std::string& alignName, const float& outlier = -1);
+        void Plot(const std::vector<std::string>& histFiles, const std::string& outDir, const std::vector<int>& colors, const std::vector<int>& styles, const std::vector<std::string>& titles, const std::string& rightTitle);
 };
 
 #endif

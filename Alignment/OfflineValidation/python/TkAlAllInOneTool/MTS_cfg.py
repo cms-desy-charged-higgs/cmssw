@@ -12,21 +12,13 @@ process = cms.Process("MuonTrackSplit")
 ##Argument parsing
 options = VarParsing()
 options.register("config", "", VarParsing.multiplicity.singleton, VarParsing.varType.string , "AllInOne config")
+options.register("isCrab", False, VarParsing.multiplicity.singleton, VarParsing.varType.bool , "Bool to check if this is a crab job")
 
 options.parseArguments()
 
 ##Read in AllInOne config in JSON format
 with open(options.config, "r") as configFile:
     config = json.load(configFile)
-
-##Load common configuration
-
-##Argument parsing
-options = VarParsing()
-options.register("config", "", VarParsing.multiplicity.singleton, VarParsing.varType.string , "AllInOne config")
-options.register("isCrab", False, VarParsing.multiplicity.singleton, VarParsing.varType.bool , "Bool to check if this is a crab job")
-
-options.parseArguments()
 
 ##Read in AllInOne config in JSON format
 if options.config == "":
@@ -69,6 +61,9 @@ process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(config["validation"].get("maxevents", -1))
 )
 
+##Check is zero tesla mode
+isZeroTesla = config["validation"].get("magneticfield", 0) == 0
+
 ##Bookeeping
 process.options = cms.untracked.PSet(
     wantSummary = cms.untracked.bool(False),
@@ -83,7 +78,7 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 100
 process.load("RecoVertex.BeamSpotProducer.BeamSpot_cff")
 process.load("Configuration.Geometry.GeometryDB_cff")
 process.load('Configuration.StandardSequences.Services_cff')
-process.load("Configuration.StandardSequences.MagneticField_cff")
+process.load("Configuration.StandardSequences.MagneticField_0T_cff" if isZeroTesla else "Configuration.StandardSequences.MagneticFields_cff")
 
 ##Track fitting
 import Alignment.CommonAlignment.tools.trackselectionRefitting as trackselRefit
@@ -94,7 +89,7 @@ process.seqTrackselRefit = trackselRefit.getSequence(process,
                                                      usePixelQualityFlag=config["validation"].get("usePixelQualityFlag", True),
                                                      openMassWindow = False,
                                                      cosmicsDecoMode = config["validation"].get("cosmicsDecoMode", True),
-                                                     cosmicsZeroTesla= config["validation"].get("cosmicsZeroTesla", False),
+                                                     cosmicsZeroTesla= isZeroTesla,
                                                      momentumConstraint = None,
                                                      cosmicTrackSplitting = True,
                                                      use_d0cut = False,
@@ -147,7 +142,7 @@ process.cosmicValidation = cms.EDAnalyzer("CosmicSplitterValidation",
 )
 
 process.TFileService = cms.Service("TFileService",
-    fileName = cms.string("{}/MTS.root".format(config["output"])),
+    fileName = cms.string("{}/MTS.root".format(config.get("output", os.getcwd())) if not options.isCrab else "MTS.root"),
     closeFileFast = cms.untracked.bool(True),
 )
 

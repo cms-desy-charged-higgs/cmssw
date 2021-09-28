@@ -209,6 +209,7 @@ The table below show the possible options for the `MTS` configuration.
 
 Variable | Default value | Explanation
 -------- | ------------- | -----------
+run-mode | Condor        | Batch scheduler
 alignments      |       -       |  List of alignment name defined in the alignments section
 dataset     |       -       |  Txt file with list of input ROOT files
 goodLumi | Empty list | JSON format with good lumi sections
@@ -219,6 +220,63 @@ magneticfield | 0 (-> zero Tesla) | Magnetic field strength in Tesla
 subdetector | - | Name of detector system to apply cuts one
 customrighttitle | "" | String shown on top right of the plot
 outliercut | 0 (-> nothing is cutted) | Threshold to cut away events in the tails of the distributions
+
+## Distributions of the medians of the residuals
+
+The distributions of the medians of the residuals (`DMR`) is a three step validation. In the first step histograms are produced by the EDM module `plugins/TrackerOfflineValidation.cc` executed by `cmsRun` and configured by `python/TkAlAllInOne/DMR_cfg.py`. In the second step the plots are produced by the `bin/DMRmerge.cc` executable. If wished, a trend of `IOV`s can be plotted in the third step with the `bin/DMRtrends.cc` executable. In general a config for the `DMR` will look like this:
+
+```
+validations:
+    DMR:
+        single:
+            ValidationName1:
+                 ...
+                 ...
+                 
+         merge:
+            ValidationName1:
+                 ...
+                 ...
+                 
+         trends:
+                ...
+```
+
+Possible options for `single` configuration:
+
+Variable | Default value | Explanation
+-------- | ------------- | -----------
+run-mode | Condor        | Batch scheduler
+IOV      | empty list    | List of IOVs to processes
+alignments      |       -       |  List of alignment name defined in the alignments section
+dataset     |       -       |  Txt file with list of input ROOT files
+goodLumi | Empty list | JSON format with good lumi sections
+trackcollection | generalTracks | Name of used track collection
+tthrbuilder |  WithAngleAndTemplate | 
+maxevents | -1 (-> all events) | Maximum number of events to process
+maxtracks | 1 | Maximum number of tracks to process
+magneticfield | True | Magnetic field on or off
+usePixelQualityFlag | True |
+vertexcollection | offlinePrimaryVertices | Name of primary vertex collection
+moduleLevelHistsTransient | False |
+moduleLevelProfiles | False |
+stripYResiduals | False |
+chargecut | 0 |
+
+Possible options for `merge` configuration:
+
+Variable | Default value | Explanation
+-------- | ------------- | -----------
+customrighttitle | ""  | Title shown in the top right of the plot
+singles | - | List of validation names used in the single section
+usefit | True |
+minimum | 15 |
+bigtext | True |
+legendheader | "" |
+moduleid | Empty list | 
+curves | plain |
+methods | [median, rmsNorm] |
+legendoptions | [mean, rms] |
 
 ## JetHT validation
 

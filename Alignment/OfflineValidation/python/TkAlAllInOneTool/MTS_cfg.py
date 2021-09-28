@@ -17,10 +17,6 @@ options.register("isCrab", False, VarParsing.multiplicity.singleton, VarParsing.
 options.parseArguments()
 
 ##Read in AllInOne config in JSON format
-with open(options.config, "r") as configFile:
-    config = json.load(configFile)
-
-##Read in AllInOne config in JSON format
 if options.config == "":
     config = {"validation": {},
               "alignment": {}}

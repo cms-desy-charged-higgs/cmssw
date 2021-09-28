@@ -1,16 +1,81 @@
-# Validation
+# The new AllInOne tool
 
-We use the Boost library (Program Options, Filesystem & Property Trees) to deal with the treatment of the config file.
-Basic idea:
- - a generic config file is "projected" for each validation (*e.g.* the geometry is changed, together with the plotting style);
- - for each config file, a new condor config file is produced;
- - a DAGMAN file is also produced in order to submit the whole validation at once.
+For the validation of the produced alignments, several validation methods (Primary vertex, Muon Track Split, etc.) are implemented for the user. The configuration of the validation jobs is encoded in the `AllInOne` config file, which is provided to the master python executable `validateAlignments.py`. A clear directory hierachy is set up, for each a job a slimmed config is configured and all jobs are submitted with HTCondor.
 
-In principle, the `validateAlignments.py` command is enough to submit everything.
-However, for local testing, one may want to make a dry run: all files will be produced, but the condor jobs will not be submitted;
-then one can just test locally any step, or modify any parameter before simply submitting the DAGMAN.
+## Validation logic and a little terminology  
 
-## HOWTO use
+Each validation typically is a several step process. The first step is the production of flat NTuples or/and histograms while looping over the given input datasets. In the `AllInOne` config this jobs are referred as `single` jobs and utilize custom CMSSW EDM modules which are run with `cmsRun`. In the next step the flat NTuples/histograms are used to produce the wished plots, this kind of jobs are referred as `merge` jobs. In some cases, the alignments are produced in several periods/time intervalls (IOVs), for this purpose `trends` jobs are used to produce plots displaying the alignment performance for the different periods.
+
+## AllInOne config
+
+All wished validation are configured in one config file written in either `json`/`yaml` format. Both config formats allow hierarchical/tree configuration structures and are equivalent in its information encoding and usage. The `json` format is typically used in JavaScript and has a very strict syntax with a lot symbols, while `yaml` follows the lax syntax of python and has overall better readibility. All python executables can handle both `json`/`yaml` format, while C++ executable only can deal with `json` with the usage of property tree class of boost.
+
+### Basic structure of the config
+
+The basic structure of the config is always the same. The two main arguments which appear in the configs are `validations` and `alignments`. In the `alignments` the wished alignment condition and the plotting style is configured, while in the `validations` section the type of validation are configured, the job type and custom arguments needed for each validation job. Hence the general structure will look like this (in `yaml` format):
+
+```
+alignments:
+    Alignment1:
+        color: ...
+        style: ...
+        globalTag: ...
+        title: ...
+        
+    Alignment2:
+        color: ...
+        style: ...
+        conditions: ...
+        title: ...
+    
+    ...
+
+validations:
+     ValidationType1:
+         single:
+             ValidationName: 
+                 IOV: [...]
+                 max-events: ...
+                 dataset: ...
+          
+          merge: 
+             ValidationName: 
+                 legend-title: ...    
+                 
+     ValidationType2:
+         single: ...
+         
+         merge: ...       
+```
+
+### Old config style
+
+In the old implementation of the tool the config format is `ini`. This format allows only configuration of sections without deeper substructure. The section names are connected by the old tool to get a pseudo substructure, but this leads for complicated configuration to unreadable/non-understandable files. Generally the ini config follows a logic like this:
+
+```
+[alignment: Alingment1]
+color = ...
+...
+
+[alignment: Alingment2]
+color = ...
+...
+
+[validationType1: validationName]
+IOV: [...]
+max-events: ...
+
+[plots: validationType1]
+legend-title: ...    
+
+[validation]
+validationType1 validationName = Alingment1
+validationType1 validationName = Alingment2
+``` 
+
+Following the naming convention used in the example of old and new configutaion, an `ini` config should be translatable into a `json`/`yaml` in most cases. In a completed configuration the better approach is probably to write the `json`/`yaml` from scratch using the documentation below.
+
+## General usage of validationsAlignment.py
 
 The main script is `validateAlignments.py`. One can check the options with:
 ```
@@ -58,7 +123,7 @@ validateAlignments.py $CMSSW_BASE/src/Alignment/OfflineValidation/test/test.yaml
 Enviroment is set up. If you want to submit everything, call 'condor_submit_dag /afs/cern.ch/user/d/dbrunner/ToolDev/CMSSW_10_6_0/src/MyTest/DAG/dagFile'
 ```
 
-## HOWTO implement
+## Implementation of a validation in the tool
 
 To implement a new/or porting an existing validation to the new frame work, two things needs to be provided: executables and a python file providing the information for each job.
 
@@ -66,9 +131,9 @@ To implement a new/or porting an existing validation to the new frame work, two 
 
 In the new frame work standalone executables do the job of the validations. They are designed to run indenpendently from the set up of validateAlignments.py, the executables only need a configuration file with information needed for the validation/plotting. One can implement a C++ or a python executable. 
 
-If a C++ executable is implemented, the source file of the executable needs to be placed in the` Alignment/OfflineValidation/bin` directory and the BuildFile.xml in this directory needs to be modified. For the readout of the configuration file, which is in JSON format, the property tree class from the boost library is used. See `bin/DMRmerge.cc as` an example of a proper C++ implementation.
+If a C++ executable is implemented, the source file of the executable needs to be placed in the `Alignment/OfflineValidation/bin` directory and the BuildFile.xml in this directory needs to be modified. For the readout of the configuration file, which is in JSON format, the property tree class from the boost library is used. See `bin/DMRmerge.cc` as an example of a proper C++ implementation.
 
-If a python executable is implemented, the source file needs to be placed in the `Alignment/OfflineValidation/scripts` directory. In the first line of the python script a shebang like `#!/usr/bin/env python` must be written and the script itself must be changed to be executable. In the case of python the configuration file can be both in JSON/YAML, because in python both after read in are just python dictionaries. See `Example of Senne when he finished it` as an example of a proper python implementation.
+If a python executable is implemented, the source file needs to be placed in the `Alignment/OfflineValidation/scripts` directory. In the first line of the python script a shebang like `#!/usr/bin/env python` must be written and the script itself must be changed to be executable. In the case of python the configuration file can be both in JSON/YAML, because in python both after read in are just python dictionaries. See `scripts/GCPpyPlots.py` as an example of a proper python implementation.
 
 For the special case of a cmsRun job, one needs to provide only the CMS python configuration. Because it is python again, both JSON/YAML for the configuration file are fine to use. Also for this case the execution via cmsRun is independent from the set up provided by validateAligments.py and only need the proper configuration file. See `python/TkAlAllInOneTool/DMR_cfg.py` as an example of a proper implementation.
 
@@ -83,34 +148,77 @@ job = {
        "name": Job name ##Needs to be unique!
        "dir": workingDirectory  ##Also needs to be unique!
        "exe": Name of executable/or cmsRun
+       "run-mode": Batch cluster (Either "Condor" or possibly "Crab" for cmsRun execution)
        "cms-config": path to CMS config if exe = cmsRun, else leave this out
        "dependencies": [name of jobs this jobs needs to wait for] ##Empty list [] if no depedencies
        "config": Slimmed config from global config only with information needed for this job
 }
 ```
 
-The python file returns a list of jobs to the `validateAligments.py` which finally creates the directory structure/configuration files/DAG file. To let` validateAligments.py` know one validation implementation exist, import the respective python file and extend the if statements which starts at line 69. This is the only time one needs to touch `validateAligments.py`!
+The python file returns a list of jobs to the `validateAligments.py` which finally creates the directory structure/configuration files/DAG file. To let `validateAligments.py` know one validation implementation exist, import the respective python file and extend the if statements which starts at line 69. This is the only time one needs to touch `validateAligments.py`!
  
 
-## TODO list 
+# Validation overview
 
- - improve exceptions handling (filesystem + own)
-   - check inconsistencies in config file?
- - from DMR toy to real application
-   - GCP (get "n-tuples" + grid, 3D, TkMaps)
-   - DMRs (single + merge + trend)
-   - PV (single + merge + trend)
-   - Zµµ (single + merge)
-   - MTS (single + merge)
-   - overlap (single + merge + trend)
-   - ...
- - documentation (this README)
-   - tutorial
-   - instructions for developers
- - details
-   - copy condor config like the executable (or similar) and use soft links instead of hard copy
-   - make dry and local options (i.e. just don't run any condor command)
-(list from mid-January)
+## General and alignment configuration
+
+For all validations the general and alignment section are essential identical to configure. Generally the config general/alignment will look like this (in `yaml`):
+
+```
+general1: ...
+general2: ...
+
+alignments:
+    Alignment1:
+    ...
+    
+    Alignment2:
+    ...
+    
+    ...
+```
+
+The table below show the possible options for both general and alignment section.
+
+Variable | Default value | Explanation
+-------- | ------------- | -----------
+LFS      |       -       |  Base directory created for the output (EOS/LFS group dir)
+name     |       -       |  Name of working directory
+
+Variable | Default value | Explanation
+-------- | ------------- | -----------
+color    |       -       |  Integer value of color from ROOT color wheel
+style    |       -       |  Integer value of marker style for ROOT plot
+title    |       -       |  Title as shown in the plot legend
+globalTag |      -       |  Global tag used by the CMSSW config
+conditions |     -       |  Custom conditions loaded from the database
+
+## Muon track split validation
+
+The Muon track split (`MTS`) validation is processed in two steps. In the first step a flat NTuple is produced by the EDM module `plugins/CosmicSplitterValidation.cc` executed by `cmsRun` and configured by `python/TkAlAllInOne/MTS_cfg.py`. In the second step the plots are produced by the `bin/MTSmerge.cc` executable. In general a config for the `MTS` will look like this:
+
+```
+validations:
+    MTS:
+        ValidationName1:
+             ...
+             ...
+```
+
+The table below show the possible options for the `MTS` configuration.
+
+Variable | Default value | Explanation
+-------- | ------------- | -----------
+alignments      |       -       |  List of alignment name defined in the alignments section
+dataset     |       -       |  Txt file with list of input ROOT files
+goodLumi | Empty list | JSON format with good lumi sections
+trackcollection | ctfWithMaterialTracksP5 | Name of used track collection
+tthrbuilder |  WithAngleAndTemplate | 
+maxevents | -1 (-> all events) | Maximum number of events to process
+magneticfield | 0 (-> zero Tesla) | Magnetic field strength in Tesla
+subdetector | - | Name of detector system to apply cuts one
+customrighttitle | "" | String shown on top right of the plot
+outliercut | 0 (-> nothing is cutted) | Threshold to cut away events in the tails of the distributions
 
 ## JetHT validation
 

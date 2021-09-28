@@ -41,7 +41,7 @@ def DMR(config, validationDir):
                     "dir": workDir,
                     "exe": "cmsRun",
                     "cms-config": "{}/src/Alignment/OfflineValidation/python/TkAlAllInOneTool/DMR_cfg.py".format(os.environ["CMSSW_BASE"]),
-                    "run-mode": "Condor",
+                    "run-mode": config["validations"]["DMR"][dmrType][singleName].get("run-mode", "Condor"),
                     "dependencies": [],
                     "config": local, 
                 }

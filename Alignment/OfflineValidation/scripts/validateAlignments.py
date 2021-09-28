@@ -15,6 +15,7 @@ import Alignment.OfflineValidation.TkAlAllInOneTool.DMR as DMR
 import Alignment.OfflineValidation.TkAlAllInOneTool.PV as PV
 import Alignment.OfflineValidation.TkAlAllInOneTool.MTS as MTS
 import Alignment.OfflineValidation.TkAlAllInOneTool.SplitV as SplitV
+import Alignment.OfflineValidation.TkAlAllInOneTool.JetHT as JetHT
 
 def parser():
     parser = argparse.ArgumentParser(description = "AllInOneTool for validation of the tracker alignment", formatter_class=argparse.RawTextHelpFormatter)
@@ -26,6 +27,27 @@ def parser():
     parser.add_argument("-j", "--job-flavour", action = "store", default = "longlunch", choices = ["espresso", "microcentury", "longlunch", "workday", "tomorrow", "testmatch", "nextweek"], help ="Job flavours for HTCondor at CERN, default is 'longlunch'")
 
     return parser.parse_args()
+
+def digest_path(path):
+    # split path in folders
+    path_s = str(path).split(os.sep)
+
+    path_d_s = []
+    for part in path_s:
+        # Look for environmental variables such as $CMSSW_BASE
+        if part.startswith('$'):
+            env_var = part[1:].replace('{', '').replace('}', '')
+            path_d_s.append(os.environ[env_var])
+        else: path_d_s.append(part)
+
+    # re join folders in to a path
+    path_d = os.path.join(*path_d_s)
+
+    # re add front / if needed
+    if path.startswith(os.sep): path_d = os.sep + path_d
+
+    return path_d
+
 
 def main():
     ##Read parser arguments
@@ -51,6 +73,9 @@ def main():
 
         else:
             raise Exception("Unknown config extension '{}'. Please use json/yaml format!".format(args.config.split(".")[-1])) 
+
+    ##Digest the LFS path
+    if 'LFS' in config: config['LFS'] = digest_path(config['LFS'])
         
     ##Create working directory
     if os.path.isdir(config["name"]) and not args.force:
@@ -87,6 +112,9 @@ def main():
         elif validation == "MTS":
             jobs.extend(MTS.MTS(config, validationDir))
 
+        elif validation == "JetHT":
+            jobs.extend(JetHT.JetHT(config, validationDir))
+
         else:
             raise Exception("Unknown validation method: {}".format(validation)) 
             
@@ -121,12 +149,6 @@ def main():
 
                 json.dump(job["config"], jsonFile, indent=4)
 
-            with open("{}/validation.yaml".format(job["dir"]), "w") as yamlFile:
-                if args.verbose:
-                    print("Write local yaml config: '{}'".format("{}/validation.yaml".format(job["dir"])))     
-
-                yaml.dump(job["config"], yamlFile, default_flow_style=False, width=float("inf"), indent=4)
-
             ##Write shell executable use in condor job
             with open("{}/run.sh".format(job["dir"]), "w") as runFile:
                 if args.verbose:
@@ -154,6 +176,11 @@ def main():
                     exeString,
                 ]
 
+                # Option the give free arguments to the executable
+                if "exeArguments" in job:
+                    runContent.pop()
+                    runContent.append("./{} {}".format(job["exe"],job["exeArguments"]))
+
                 for line in runContent:
                     runFile.write(line + "\n")
 
@@ -172,7 +199,8 @@ def main():
                     "error  = condor.err",
                     "log    = condor.log",
                     'requirements = (OpSysAndVer =?= "CentOS7")',
-                    '+JobFlavour = "{}"'.format(args.job_flavour),
+                    # Take given flavour for the job, except if overwritten in job config
+                    '+JobFlavour = "{}"'.format(args.job_flavour if not 'flavour' in job else job['flavour']),
                     '+AccountingGroup = "group_u_CMS.CAF.ALCA"',
                     "queue"
                 ]

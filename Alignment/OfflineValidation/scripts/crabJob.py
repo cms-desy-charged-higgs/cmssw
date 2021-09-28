@@ -52,7 +52,7 @@ def prepareCrab(jobName, jobDir):
     crabConf.General.transferOutputs = True
 
     crabConf.JobType.pluginName = "Analysis"
-    crabConf.JobType.psetName = "{}/validation_cfg.py".format(jobDir) ##Dummy file, otherwise crab will complain
+    crabConf.JobType.psetName = "{}/validation.py".format(jobDir) ##Dummy configuration, otherwise crab will complain
     crabConf.JobType.inputFiles = ["{}/validation.py".format(jobDir)] ##Real cms python config which will be used
     crabConf.JobType.maxJobRuntimeMin = 1440
     crabConf.JobType.maxMemoryMB = 2500
@@ -118,7 +118,9 @@ def submit(name, crabJob):
 
     except Exception as e:
         subprocess.check_output("command rm -rf {}/crabRun.sh {}/validation.py".format(workDir, workDir), shell = True)
-        raise Exception("Crab job failed for submitting '{}' because '{}'".format(name, str(e)))
+        print("Crab job failed for submitting '{}' because:".format(name))
+        print(sys.exc_info())
+        raise
 
     return out
 
